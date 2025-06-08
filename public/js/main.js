@@ -1,78 +1,109 @@
-const socket = io();
-const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-const webrtc = new Webrtc(socket, pcConfig);
+document.addEventListener('DOMContentLoaded', () => {
+  const startButton = document.getElementById('startButton');
+  const hangupButton = document.getElementById('hangupButton');
+  const toggleVideo = document.getElementById('toggleVideo');
+  const toggleAudio = document.getElementById('toggleAudio');
+  const connectionStatus = document.getElementById('connection-status');
+  
+  let localStream;
+  let isVideoOn = true;
+  let isAudioOn = true;
 
-const joinBtn = document.getElementById('joinBtn');
-const leaveBtn = document.getElementById('leaveBtn');
-const toggleMicBtn = document.getElementById('toggleMicBtn');
-const toggleCamBtn = document.getElementById('toggleCamBtn');
-const controls = document.getElementById('controls');
-const notification = document.getElementById('notification');
-const roomInput = document.getElementById('roomInput');
-const localVideo = document.getElementById('localVideo');
-const videosContainer = document.getElementById('videos');
+  // Initialize
+  updateConnectionStatus(false);
 
-let micOn = true;
-let camOn = true;
+  // Event Listeners
+  startButton.addEventListener('click', startCall);
+  hangupButton.addEventListener('click', hangUp);
+  toggleVideo.addEventListener('click', toggleLocalVideo);
+  toggleAudio.addEventListener('click', toggleLocalAudio);
 
-joinBtn.addEventListener('click', async () => {
-  const roomId = roomInput.value.trim();
-  if (!roomId) return;
-
-  joinBtn.disabled = true;
-  notification.textContent = "Joining...";
-
-  try {
-    const stream = await webrtc.getLocalStream();
-    localVideo.srcObject = stream;
-    webrtc.joinRoom(roomId);
-    leaveBtn.disabled = false;
-    controls.style.display = 'block';
-    notification.textContent = "";
-  } catch (err) {
-    console.error(err);
-    notification.textContent = "Could not access camera/mic: " + err.message;
-    joinBtn.disabled = false;
+  async function startCall() {
+    try {
+      showNotification("Memulai panggilan...");
+      localStream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: true 
+      });
+      
+      document.getElementById('localVideo').srcObject = localStream;
+      updateConnectionStatus(true);
+      startButton.disabled = true;
+      hangupButton.disabled = false;
+      
+      // Inisialisasi WebRTC (implementasi di webrtc.js)
+      initializeWebRTC(localStream);
+      
+    } catch (error) {
+      showNotification(Error: ${error.message}, true);
+      console.error("Error accessing media devices:", error);
+    }
   }
-});
 
-leaveBtn.addEventListener('click', () => {
-  webrtc.leaveRoom();
-  joinBtn.disabled = false;
-  leaveBtn.disabled = true;
-  controls.style.display = 'none';
-  localVideo.srcObject = null;
-  videosContainer.querySelectorAll("video:not(#localVideo)").forEach(v => v.remove());
-});
+  function hangUp() {
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    document.getElementById('localVideo').srcObject = null;
+    updateConnectionStatus(false);
+    startButton.disabled = false;
+    hangupButton.disabled = true;
+    
+    // Bersihkan semua video remote
+    document.getElementById('videoGrid').innerHTML = '';
+    
+    // Implementasi cleanup WebRTC (di webrtc.js)
+    closeWebRTCConnections();
+    showNotification("Panggilan diakhiri");
+  }
 
-toggleMicBtn.addEventListener('click', () => {
-  micOn = !micOn;
-  webrtc.toggleAudio(micOn);
-  toggleMicBtn.textContent = micOn ? 'Mic On' : 'Mic Off';
-});
+  function toggleLocalVideo() {
+    if (!localStream) return;
+    
+    const videoTracks = localStream.getVideoTracks();
+    if (videoTracks.length > 0) {
+      isVideoOn = !videoTracks[0].enabled;
+      videoTracks[0].enabled = isVideoOn;
+      toggleVideo.innerHTML = <i class="fas fa-video${isVideoOn ? '' : '-slash'}"></i> ${isVideoOn ? 'Video On' : 'Video Off'};
+    }
+  }
 
-toggleCamBtn.addEventListener('click', () => {
-  camOn = !camOn;
-  webrtc.toggleVideo(camOn);
-  toggleCamBtn.textContent = camOn ? 'Cam On' : 'Cam Off';
-});
+  function toggleLocalAudio() {
+    if (!localStream) return;
+    
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      isAudioOn = !audioTracks[0].enabled;
+      audioTracks[0].enabled = isAudioOn;
+      toggleAudio.innerHTML = <i class="fas fa-microphone${isAudioOn ? '' : '-slash'}"></i> ${isAudioOn ? 'Audio On' : 'Audio Off'};
+    }
+  }
 
-webrtc.addEventListener('newUser', e => {
-  const { socketId, stream } = e.detail;
-  const video = document.createElement('video');
-  video.id = `remote-${socketId}`;
-  video.autoplay = true;
-  video.playsInline = true;
-  video.srcObject = stream;
-  videosContainer.appendChild(video);
-});
+  function updateConnectionStatus(isConnected) {
+    connectionStatus.textContent = isConnected ? "Online 🟢" : "Offline 🔴";
+    connectionStatus.style.color = isConnected ? "#4CAF50" : "#F44336";
+  }
 
-webrtc.addEventListener('removeUser', e => {
-  const video = document.getElementById(`remote-${e.detail.socketId}`);
-  if (video) video.remove();
-});
+  function showNotification(message, isError = false) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    notification.style.backgroundColor = isError ? 'var(--danger-color)' : 'var(--primary-color)';
+    
+    const notificationArea = document.getElementById('notification-area');
+    notificationArea.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  }
 
-webrtc.addEventListener('kicked', () => {
-  alert('You have been kicked from the room.');
-  location.reload();
+  // Expose fungsi ke global untuk akses dari HTML
+  window.kickUser = (userId) => {
+    const videoEl = document.getElementById(video-${userId});
+    if (videoEl) {
+      videoEl.closest('.grid-item').remove();
+      showNotification(User ${userId} telah dikick);
+    }
+  };
 });
