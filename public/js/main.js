@@ -1,175 +1,85 @@
-'use strinct';
-
-const socket = io.connect();
-
+'use strict';
+const socket = io();
+const webrtc = new Webrtc(socket, {/* pcConfig... */});
 const localVideo = document.querySelector('#localVideo-container video');
 const videoGrid = document.querySelector('#videoGrid');
-const notification = document.querySelector('#notification');
-const notify = (message) => {
-    notification.innerHTML = message;
-};
-
-const pcConfig = {
-    iceServers: [
-        {
-            urls: [
-                'stun:stun.l.google.com:19302',
-                'stun:stun1.l.google.com:19302',
-                'stun:stun2.l.google.com:19302',
-                'stun:stun3.l.google.com:19302',
-                'stun:stun4.l.google.com:19302',
-            ],
-        },
-        {
-            urls: 'turn:numb.viagenie.ca',
-            credential: 'muazkh',
-            username: 'webrtc@live.com',
-        },
-        {
-            urls: 'turn:numb.viagenie.ca',
-            credential: 'muazkh',
-            username: 'webrtc@live.com',
-        },
-        {
-            urls: 'turn:192.158.29.39:3478?transport=udp',
-            credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-            username: '28224511:1379330808',
-        },
-    ],
-};
-
-/**
- * Initialize webrtc
- */
-const webrtc = new Webrtc(socket, pcConfig, {
-    log: true,
-    warn: true,
-    error: true,
-});
-
-/**
- * Create or join a room
- */
+const micBtn = document.querySelector('#micBtn');
+const camBtn = document.querySelector('#camBtn');
 const roomInput = document.querySelector('#roomId');
-const joinBtn = document.querySelector('#joinBtn');
-joinBtn.addEventListener('click', () => {
-    const room = roomInput.value;
-    if (!room) {
-        notify('Room ID not provided');
-        return;
-    }
+const nameInput = document.querySelector('#userNameInput');
+const notif = document.querySelector('#notification');
+const localNameSpan = document.querySelector('#localName');
 
-    webrtc.joinRoom(room);
-});
+webrtc.addEventListener('createdRoom', e => { notif.textContent = Created room ${e.detail.roomId}; });
+webrtc.addEventListener('joinedRoom', e => { notif.textContent = Joined room ${e.detail.roomId}; });
+webrtc.addEventListener('leftRoom', e => { notif.textContent = Left room ${e.detail.roomId}; videoGrid.innerHTML=''; });
+webrtc.addEventListener('newUser', e => addRemoteUser(e.detail.socketId, e.detail.stream));
+webrtc.addEventListener('removeUser', e => document.getElementById(e.detail.socketId)?.remove());
+webrtc.addEventListener('kicked', () => { notif.textContent = 'You were kicked'; videoGrid.innerHTML=''; });
 
-const setTitle = (status, e) => {
-    const room = e.detail.roomId;
+webrtc.getLocalStream(true, true).then(stream => { localVideo.srcObject = stream; });
 
-    console.log(`Room ${room} was ${status}`);
-
-    notify(`Room ${room} was ${status}`);
-    document.querySelector('h1').textContent = `Room: ${room}`;
-    webrtc.gotStream();
+document.getElementById('joinBtn').onclick = () => {
+  const room = roomInput.value.trim(); const nm = nameInput.value.trim()||'Anonymous';
+  if (!room) { notif.textContent='Masukkan Room ID!'; return; }
+  webrtc.joinRoom(room);
+  localNameSpan.textContent = nm;
 };
-webrtc.addEventListener('createdRoom', setTitle.bind(this, 'created'));
-webrtc.addEventListener('joinedRoom', setTitle.bind(this, 'joined'));
 
-/**
- * Leave the room
- */
-const leaveBtn = document.querySelector('#leaveBtn');
-leaveBtn.addEventListener('click', () => {
-    webrtc.leaveRoom();
-});
-webrtc.addEventListener('leftRoom', (e) => {
-    const room = e.detail.roomId;
-    document.querySelector('h1').textContent = '';
-    notify(`Left the room ${room}`);
-});
+document.getElementById('leaveBtn').onclick = () => webrtc.leaveRoom();
 
-/**
- * Get local media
- */
-webrtc
-    .getLocalStream(true, { width: 640, height: 480 })
-    .then((stream) => (localVideo.srcObject = stream));
+micBtn.onclick = () => {
+  const on = micBtn.classList.toggle('off');
+  micBtn.textContent = on ? '🔇' : '🎤';
+  webrtc.toggleAudio(!on);
+};
 
-webrtc.addEventListener('kicked', () => {
-    document.querySelector('h1').textContent = 'You were kicked out';
-    videoGrid.innerHTML = '';
-});
+camBtn.onclick = () => {
+  const off = camBtn.classList.toggle('off');
+  camBtn.textContent = off ? '📷' : '📹';
+  webrtc.toggleVideo(!off);
+};
 
-webrtc.addEventListener('userLeave', (e) => {
-    console.log(`user ${e.detail.socketId} left room`);
-});
+function addRemoteUser(id, stream) {
+  const cont = document.createElement('div');
+  cont.className = 'grid-item'; cont.id = id;
 
-/**
- * Handle new user connection
- */
-webrtc.addEventListener('newUser', (e) => {
-    const socketId = e.detail.socketId;
-    const stream = e.detail.stream;
+  const vid = document.createElement('video');
+  vid.autoplay = true; vid.playsInline = true; vid.srcObject = stream;
 
-    const videoContainer = document.createElement('div');
-    videoContainer.setAttribute('class', 'grid-item');
-    videoContainer.setAttribute('id', socketId);
+  const name = document.createElement('p');
+  name.textContent = id;
 
-    const video = document.createElement('video');
-    video.setAttribute('autoplay', true);
-    video.setAttribute('muted', true); // set to false
-    video.setAttribute('playsinline', true);
-    video.srcObject = stream;
+  const ctrls = document.createElement('div');
+  ctrls.className = 'controls';
 
-    const p = document.createElement('p');
-    p.textContent = socketId;
+  const mic = document.createElement('button');
+  mic.className='btn-toggle mic-toggle';
+  mic.textContent='🎤';
+  mic.onclick = () => {
+    mic.classList.toggle('off');
+    stream.getAudioTracks().forEach(t=>t.enabled = !t.enabled);
+    mic.textContent = mic.classList.contains('off')?'🔇':'🎤';
+  };
 
-    videoContainer.append(p);
-    videoContainer.append(video);
+  const cam = document.createElement('button');
+  cam.className='btn-toggle video-toggle';
+  cam.textContent='📹';
+  cam.onclick = () => {
+    cam.classList.toggle('off');
+    stream.getVideoTracks().forEach(t=>t.enabled = !t.enabled);
+    cam.textContent = cam.classList.contains('off')?'📷':'📹';
+  };
 
-    // If user is admin add kick buttons
-    if (webrtc.isAdmin) {
-        const kickBtn = document.createElement('button');
-        kickBtn.setAttribute('class', 'kick_btn');
-        kickBtn.textContent = 'Kick';
+  ctrls.append(mic, cam);
+  cont.append(name, vid, ctrls);
 
-        kickBtn.addEventListener('click', () => {
-            webrtc.kickUser(socketId);
-        });
+  if (webrtc.isAdmin) {
+    const kick = document.createElement('button');
+    kick.className = 'kick_btn'; kick.textContent = 'Kick';
+    kick.onclick = () => socket.emit('kickout', id, webrtc.room);
+    cont.appendChild(kick);
+  }
 
-        videoContainer.append(kickBtn);
-    }
-    videoGrid.append(videoContainer);
-});
-
-/**
- * Handle user got removed
- */
-webrtc.addEventListener('removeUser', (e) => {
-    const socketId = e.detail.socketId;
-    if (!socketId) {
-        // remove all remote stream elements
-        videoGrid.innerHTML = '';
-        return;
-    }
-    document.getElementById(socketId).remove();
-});
-
-/**
- * Handle errors
- */
-webrtc.addEventListener('error', (e) => {
-    const error = e.detail.error;
-    console.error(error);
-
-    notify(error);
-});
-
-/**
- * Handle notifications
- */
-webrtc.addEventListener('notification', (e) => {
-    const notif = e.detail.notification;
-    console.log(notif);
-
-    notify(notif);
-});
+  videoGrid.appendChild(cont);
+}
