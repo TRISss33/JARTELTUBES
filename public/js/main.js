@@ -1,132 +1,78 @@
-'use strict';
+const socket = io();
+const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const webrtc = new Webrtc(socket, pcConfig);
 
-const socket = io(); // pastikan socket.io sudah connect
-const webrtc = new Webrtc(socket, null, { log: true, warn: true, error: true });
-
-const roomInput = document.getElementById('roomInput');
-const nameInput = document.getElementById('nameInput');
 const joinBtn = document.getElementById('joinBtn');
 const leaveBtn = document.getElementById('leaveBtn');
-const notification = document.getElementById('notification');
-const localVideo = document.getElementById('localVideo');
-const videos = document.getElementById('videos');
-const controls = document.getElementById('controls');
 const toggleMicBtn = document.getElementById('toggleMicBtn');
 const toggleCamBtn = document.getElementById('toggleCamBtn');
+const controls = document.getElementById('controls');
+const notification = document.getElementById('notification');
+const roomInput = document.getElementById('roomInput');
+const localVideo = document.getElementById('localVideo');
+const videosContainer = document.getElementById('videos');
 
-let localStream;
-let micEnabled = true;
-let camEnabled = true;
+let micOn = true;
+let camOn = true;
 
-joinBtn.onclick = async () => {
-  const room = roomInput.value.trim();
-  const name = nameInput.value.trim() || 'Anonymous';
+joinBtn.addEventListener('click', async () => {
+  const roomId = roomInput.value.trim();
+  if (!roomId) return;
 
-  if (!room) {
-    notification.textContent = 'Room ID harus diisi!';
-    return;
-  }
-  notification.textContent = '';
+  joinBtn.disabled = true;
+  notification.textContent = "Joining...";
 
   try {
-    localStream = await webrtc.getLocalStream({ audio: true }, { video: true });
-    localVideo.srcObject = localStream;
-    controls.style.display = 'block';
-
-    // Update buttons
-    joinBtn.disabled = true;
+    const stream = await webrtc.getLocalStream();
+    localVideo.srcObject = stream;
+    webrtc.joinRoom(roomId);
     leaveBtn.disabled = false;
-    roomInput.disabled = true;
-    nameInput.disabled = true;
-
-    webrtc._localStream = localStream; // pastikan stream disimpan ke objek webrtc (kalau belum)
-
-    webrtc.joinRoom(room);
+    controls.style.display = 'block';
+    notification.textContent = "";
   } catch (err) {
-    notification.textContent = 'Gagal mendapatkan akses kamera/mikrofon.';
     console.error(err);
+    notification.textContent = "Could not access camera/mic: " + err.message;
+    joinBtn.disabled = false;
   }
-};
+});
 
-leaveBtn.onclick = () => {
+leaveBtn.addEventListener('click', () => {
   webrtc.leaveRoom();
-
-  // Reset UI
   joinBtn.disabled = false;
   leaveBtn.disabled = true;
-  roomInput.disabled = false;
-  nameInput.disabled = false;
   controls.style.display = 'none';
-  notification.textContent = '';
+  localVideo.srcObject = null;
+  videosContainer.querySelectorAll("video:not(#localVideo)").forEach(v => v.remove());
+});
 
-  // Stop local stream
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
-    localVideo.srcObject = null;
-  }
+toggleMicBtn.addEventListener('click', () => {
+  micOn = !micOn;
+  webrtc.toggleAudio(micOn);
+  toggleMicBtn.textContent = micOn ? 'Mic On' : 'Mic Off';
+});
 
-  // Remove all remote videos
-  for (const video of document.querySelectorAll('.remoteVideo')) {
-    video.remove();
-  }
-};
+toggleCamBtn.addEventListener('click', () => {
+  camOn = !camOn;
+  webrtc.toggleVideo(camOn);
+  toggleCamBtn.textContent = camOn ? 'Cam On' : 'Cam Off';
+});
 
-toggleMicBtn.onclick = () => {
-  if (!localStream) return;
-  micEnabled = !micEnabled;
-  localStream.getAudioTracks().forEach(track => (track.enabled = micEnabled));
-  toggleMicBtn.textContent = micEnabled ? 'Mic On' : 'Mic Off';
-};
-
-toggleCamBtn.onclick = () => {
-  if (!localStream) return;
-  camEnabled = !camEnabled;
-  localStream.getVideoTracks().forEach(track => (track.enabled = camEnabled));
-  toggleCamBtn.textContent = camEnabled ? 'Cam On' : 'Cam Off';
-};
-
-// Event handlers dari Webrtc class
-webrtc.addEventListener('newUser', (e) => {
+webrtc.addEventListener('newUser', e => {
   const { socketId, stream } = e.detail;
-  console.log('New remote user connected:', socketId);
-
-  if (document.getElementById('remoteVideo_' + socketId)) return;
-
-  const remoteVideo = document.createElement('video');
-  remoteVideo.id = 'remoteVideo_' + socketId;
-  remoteVideo.autoplay = true;
-  remoteVideo.playsInline = true;
-  remoteVideo.srcObject = stream;
-  remoteVideo.classList.add('remoteVideo');
-
-  videos.appendChild(remoteVideo);
+  const video = document.createElement('video');
+  video.id = `remote-${socketId}`;
+  video.autoplay = true;
+  video.playsInline = true;
+  video.srcObject = stream;
+  videosContainer.appendChild(video);
 });
 
-webrtc.addEventListener('removeUser', (e) => {
-  const { socketId } = e.detail;
-  console.log('User left:', socketId);
-
-  const remoteVideo = document.getElementById('remoteVideo_' + socketId);
-  if (remoteVideo) {
-    remoteVideo.srcObject = null;
-    remoteVideo.remove();
-  }
+webrtc.addEventListener('removeUser', e => {
+  const video = document.getElementById(`remote-${e.detail.socketId}`);
+  if (video) video.remove();
 });
 
-webrtc.addEventListener('notification', (e) => {
-  const { notification: msg } = e.detail;
-  notification.textContent = msg;
-});
-
-webrtc.addEventListener('error', (e) => {
-  const { error } = e.detail;
-  notification.textContent = Error: ${error.message};
-});
-
-webrtc.addEventListener('createdRoom', (e) => {
-  notification.textContent = Room ${e.detail.roomId} created, you are the initiator.;
-});
-
-webrtc.addEventListener('joinedRoom', (e) => {
-  notification.textContent = Joined room ${e.detail.roomId}.;
+webrtc.addEventListener('kicked', () => {
+  alert('You have been kicked from the room.');
+  location.reload();
 });
