@@ -1,153 +1,97 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  color: #333;
+}
+
 h1 {
   text-align: center;
-  margin: 20px 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #eee;
-  text-shadow: 0 0 5px rgba(0,0,0,0.7);
+  margin-bottom: 1rem;
 }
 
-body {
-  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
-              url(https://i.pinimg.com/originals/8f/14/57/8f14578ef69a4c53352955d1e072eda6.png);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  background-size: cover;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: white;
-  height: 100vh;
-  overflow-x: hidden;
-  padding: 20px;
+#controlsLocal {
+  text-align: center;
 }
 
-/* Grid container */
-.grid-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  padding: 10px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* Each video container */
-.grid-item {
-  position: relative;
-  background-color: rgba(30, 30, 30, 0.85);
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7);
-  overflow: hidden;
-  user-select: none;
-}
-
-/* Video styling */
-.grid-item video {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 12px 12px 0 0;
-  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.7);
-}
-
-/* User name overlay */
-.grid-item p {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
-  background-color: rgba(0,0,0,0.4);
-  padding: 4px 10px;
-  border-radius: 20px;
-  max-width: 90%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Controls container */
-.grid-item .controls {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  display: flex;
-  gap: 10px;
-}
-
-/* Mic and Video buttons */
-.grid-item .btn-toggle {
-  background-color: rgba(255, 255, 255, 0.15);
-  border: none;
-  border-radius: 50%;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.25s ease;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-  color: white;
-  font-size: 18px;
-}
-
-.grid-item .btn-toggle:hover {
-  background-color: #ff4757;
-  color: white;
-  box-shadow: 0 0 10px #ff4757;
-}
-
-/* Kick button style */
-.grid-item .kick_btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: #ff4757;
-  color: white;
-  border: none;
-  border-radius: 20px;
-  padding: 5px 12px;
-  font-weight: 700;
-  font-size: 16px;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(255, 71, 87, 0.7);
-  transition: background-color 0.3s ease;
-}
-
-.grid-item .kick_btn:hover {
-  background-color: #ff2e3a;
-}
-
-/* Local video container (smaller preview) */
 #localVideo-container {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 220px;
+  width: 200px;
   height: 140px;
-  border-radius: 12px;
+  background: #000;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-  background-color: rgba(30,30,30,0.9);
-  z-index: 999;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
 #localVideo-container video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 12px;
 }
 
-/* Responsive text and layout tweaks */
-@media screen and (max-width: 600px) {
-  .grid-container {
-    grid-template-columns: 1fr;
-  }
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
 
-  #localVideo-container {
-    width: 180px;
-    height: 120px;
-  }
+.grid-item {
+  position: relative;
+  background: #222;
+  border-radius: 8px;
+  overflow: hidden;
+  color: #fff;
+}
+
+.grid-item video {
+  width: 100%;
+  display: block;
+}
+
+.grid-item p {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  margin: 0;
+  background: rgba(0,0,0,0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.grid-item .controls {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  display: flex;
+  gap: 5px;
+}
+
+.btn-toggle {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.btn-toggle.off {
+  background: #dc3545;
+}
+
+.kick_btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #dc3545;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  color: #fff;
 }
